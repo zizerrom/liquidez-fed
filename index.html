@@ -113,22 +113,21 @@
         return 0;
     }
 
-    // Petición JSONP sin usar la API fetch ni proxies externos
-    function fetchFredJsonp(seriesId, apiKey) {
+    function fetchFredJsonp(seriesId, apiKey, limit = 15) {
         return new Promise((resolve, reject) => {
-            const callbackName = 'fred_cb_' + seriesId + '_' + Math.random().toString(36).substring(2, 8);
+            const callbackName = 'fred_cb_' + seriesId.replace(/[^a-zA-Z0-9]/g, '_') + '_' + Math.random().toString(36).substring(2, 8);
             const script = document.createElement('script');
             
             const timeout = setTimeout(() => {
                 delete window[callbackName];
-                document.body.removeChild(script);
+                if (script.parentNode) document.body.removeChild(script);
                 reject(new Error(`Timeout al obtener la serie ${seriesId}`));
-            }, 10000);
+            }, 15000);
 
             window[callbackName] = function(data) {
                 clearTimeout(timeout);
                 delete window[callbackName];
-                document.body.removeChild(script);
+                if (script.parentNode) document.body.removeChild(script);
                 if (data.error_message) {
                     reject(new Error(data.error_message));
                 } else {
@@ -136,11 +135,11 @@
                 }
             };
 
-            script.src = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=40&callback=${callbackName}`;
+            script.src = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=${limit}&callback=${callbackName}`;
             script.onerror = () => {
                 clearTimeout(timeout);
                 delete window[callbackName];
-                document.body.removeChild(script);
+                if (script.parentNode) document.body.removeChild(script);
                 reject(new Error(`No se pudo cargar la serie ${seriesId}`));
             };
 
@@ -160,12 +159,13 @@
         btn.classList.add('loading');
 
         try {
+            // Descarga de datos optimizada con límites reducidos para evitar congestionar la red
             const [balance, tga, rrp, hy, realRate] = await Promise.all([
-                fetchFredJsonp('WALCL', apiKey),
-                fetchFredJsonp('WTREGEN', apiKey),
-                fetchFredJsonp('RRPONTSYD', apiKey),
-                fetchFredJsonp('BAMLH0A0HYM2', apiKey),
-                fetchFredJsonp('DFII10', apiKey)
+                fetchFredJsonp('WALCL', apiKey, 20),
+                fetchFredJsonp('WTREGEN', apiKey, 20),
+                fetchFredJsonp('RRPONTSYD', apiKey, 20),
+                fetchFredJsonp('BAMLH0A0HYM2', apiKey, 10),
+                fetchFredJsonp('DFII10', apiKey, 10)
             ]);
 
             const latestHy = getLastValidValue(hy);
