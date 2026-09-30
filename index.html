@@ -100,9 +100,7 @@
     let chart;
 
     function parseFredValue(item) {
-        if (!item || item.value === "." || isNaN(parseFloat(item.value))) {
-            return null;
-        }
+        if (!item || item.value === "." || isNaN(parseFloat(item.value))) return null;
         return parseFloat(item.value);
     }
 
@@ -114,42 +112,14 @@
         return 0;
     }
 
-    // Petición robusta que intenta conectarse mediante múltiples proxies si uno falla
     async function fetchFredSeries(seriesId, apiKey) {
         const targetUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=40`;
-        
-        // Lista de proxies CORS con diferentes formatos
-        const proxies = [
-            (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-            (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-            (url) => `https://thingproxy.freeboard.io/fetch/${url}`
-        ];
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
 
-        let lastError = null;
-
-        for (const getProxyUrl of proxies) {
-            const proxyUrl = getProxyUrl(targetUrl);
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 7000); // 7 segundos por intento
-
-            try {
-                const response = await fetch(proxyUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
-
-                if (data && data.observations) {
-                    return data.observations;
-                }
-            } catch (err) {
-                clearTimeout(timeoutId);
-                lastError = err;
-                console.warn(`Proxy falló para ${seriesId}: ${proxyUrl}`, err.message);
-            }
-        }
-
-        throw new Error(`No se pudieron obtener datos para la serie ${seriesId}. Detalle: ${lastError?.message || 'Error de conexión'}`);
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        return data.observations || [];
     }
 
     async function fetchAllData() {
@@ -164,7 +134,6 @@
         btn.classList.add('loading');
 
         try {
-            // Se ejecutan de manera secuencial para evitar saturar el límite de peticiones simultáneas de los proxies
             const balance = await fetchFredSeries('WALCL', apiKey);
             const tga = await fetchFredSeries('WTREGEN', apiKey);
             const rrp = await fetchFredSeries('RRPONTSYD', apiKey);
@@ -186,7 +155,6 @@
                 const tVal = parseFredValue(tga[i]) ?? lastKnownTga;
                 const rVal = parseFredValue(rrp[i]) ?? lastKnownRrp;
 
-                // Homogeneización de unidades a Trillones de $
                 const netLiqTrillions = (bVal - tVal - (rVal * 1000)) / 1000000;
 
                 netLiquidityData.push({
@@ -202,7 +170,6 @@
             document.getElementById('hyOas').innerText = `${latestHy.toFixed(2)}%`;
             document.getElementById('realRate').innerText = `${latestRealRate.toFixed(2)}%`;
 
-            const isBullish = true;
             document.getElementById('techRegime').innerText = "ALCISTA";
             document.getElementById('techRegime').style.color = "var(--up)";
 
@@ -210,11 +177,11 @@
             const isLiqGrowing = currentLiq > prevLiq;
             const isCreditSafe = latestHy < 4.5;
 
-            if (isBullish && isLiqGrowing && isCreditSafe) {
+            if (isLiqGrowing && isCreditSafe) {
                 signalBox.innerText = "SEÑAL: EXPANSIÓN AGRESIVA (RISK-ON)";
                 signalBox.style.backgroundColor = "rgba(35, 134, 54, 0.2)";
                 signalBox.style.borderColor = "var(--up)";
-            } else if (!isBullish || latestHy > 5) {
+            } else if (latestHy > 5) {
                 signalBox.innerText = "SEÑAL: MÁXIMA PRECAUCIÓN (DEFENSIVO)";
                 signalBox.style.backgroundColor = "rgba(218, 54, 51, 0.2)";
                 signalBox.style.borderColor = "var(--down)";
@@ -228,7 +195,7 @@
 
         } catch (error) {
             console.error("Detalle del error:", error);
-            alert("No se pudieron cargar los datos de FRED: " + error.message);
+            alert("Error al cargar datos: " + error.message);
         } finally {
             btn.innerText = "ACTUALIZAR DATOS REALES";
             btn.classList.remove('loading');
@@ -263,9 +230,7 @@
         });
     }
 
-    window.onload = () => {
-        fetchAllData();
-    };
+    window.onload = () => { fetchAllData(); };
 </script>
 
 </body>
