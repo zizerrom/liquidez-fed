@@ -113,19 +113,39 @@
         return 0;
     }
 
-    async function fetchFredSeries(seriesId, apiKey) {
-        const targetUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=40`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+    // Petición JSONP sin usar la API fetch ni proxies externos
+    function fetchFredJsonp(seriesId, apiKey) {
+        return new Promise((resolve, reject) => {
+            const callbackName = 'fred_cb_' + seriesId + '_' + Math.random().toString(36).substring(2, 8);
+            const script = document.createElement('script');
+            
+            const timeout = setTimeout(() => {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                reject(new Error(`Timeout al obtener la serie ${seriesId}`));
+            }, 10000);
 
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result = await response.json();
-        
-        const data = JSON.parse(result.contents);
-        if (data.error_message) {
-            throw new Error(data.error_message);
-        }
-        return data.observations || [];
+            window[callbackName] = function(data) {
+                clearTimeout(timeout);
+                delete window[callbackName];
+                document.body.removeChild(script);
+                if (data.error_message) {
+                    reject(new Error(data.error_message));
+                } else {
+                    resolve(data.observations || []);
+                }
+            };
+
+            script.src = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=40&callback=${callbackName}`;
+            script.onerror = () => {
+                clearTimeout(timeout);
+                delete window[callbackName];
+                document.body.removeChild(script);
+                reject(new Error(`No se pudo cargar la serie ${seriesId}`));
+            };
+
+            document.body.appendChild(script);
+        });
     }
 
     async function fetchAllData() {
@@ -140,11 +160,13 @@
         btn.classList.add('loading');
 
         try {
-            const balance = await fetchFredSeries('WALCL', apiKey);
-            const tga = await fetchFredSeries('WTREGEN', apiKey);
-            const rrp = await fetchFredSeries('RRPONTSYD', apiKey);
-            const hy = await fetchFredSeries('BAMLH0A0HYM2', apiKey);
-            const realRate = await fetchFredSeries('DFII10', apiKey);
+            const [balance, tga, rrp, hy, realRate] = await Promise.all([
+                fetchFredJsonp('WALCL', apiKey),
+                fetchFredJsonp('WTREGEN', apiKey),
+                fetchFredJsonp('RRPONTSYD', apiKey),
+                fetchFredJsonp('BAMLH0A0HYM2', apiKey),
+                fetchFredJsonp('DFII10', apiKey)
+            ]);
 
             const latestHy = getLastValidValue(hy);
             const latestRealRate = getLastValidValue(realRate);
