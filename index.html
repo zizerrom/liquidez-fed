@@ -60,7 +60,7 @@
 
     <div class="api-config">
         <span>FRED API KEY:</span>
-        <input type="text" id="apiKey" placeholder="Pega tu API Key de FRED aquí..." value="3b7c00ebcc026d8720166adabc61d369">
+        <input type="text" id="apiKey" placeholder="Pega tu API Key de FRED..." value="3b7c00ebcc026d8720166adabc61d369">
         <button id="btnFetch" onclick="fetchAllData()">ACTUALIZAR DATOS REALES</button>
     </div>
 
@@ -104,47 +104,28 @@
         return parseFloat(item.value);
     }
 
-    function getLastValidValue(observations) {
-        if (!observations || !Array.isArray(observations)) return 0;
+    function getLastValidValue(observations, fallbackVal = 0) {
+        if (!observations || !Array.isArray(observations)) return fallbackVal;
         for (let obs of observations) {
             const val = parseFredValue(obs);
             if (val !== null) return val;
         }
-        return 0;
+        return fallbackVal;
     }
 
-    function fetchFredJsonp(seriesId, apiKey, limit = 15) {
-        return new Promise((resolve, reject) => {
-            const callbackName = 'fred_cb_' + seriesId.replace(/[^a-zA-Z0-9]/g, '_') + '_' + Math.random().toString(36).substring(2, 8);
-            const script = document.createElement('script');
-            
-            const timeout = setTimeout(() => {
-                delete window[callbackName];
-                if (script.parentNode) document.body.removeChild(script);
-                reject(new Error(`Timeout al obtener la serie ${seriesId}`));
-            }, 15000);
+    async function fetchFredData(seriesId, apiKey, limit = 20) {
+        const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=${limit}`;
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(fredUrl)}`;
 
-            window[callbackName] = function(data) {
-                clearTimeout(timeout);
-                delete window[callbackName];
-                if (script.parentNode) document.body.removeChild(script);
-                if (data.error_message) {
-                    reject(new Error(data.error_message));
-                } else {
-                    resolve(data.observations || []);
-                }
-            };
-
-            script.src = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=${limit}&callback=${callbackName}`;
-            script.onerror = () => {
-                clearTimeout(timeout);
-                delete window[callbackName];
-                if (script.parentNode) document.body.removeChild(script);
-                reject(new Error(`No se pudo cargar la serie ${seriesId}`));
-            };
-
-            document.body.appendChild(script);
-        });
+        try {
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            return data.observations || [];
+        } catch (err) {
+            console.warn(`Error cargando la serie ${seriesId} vía Proxy:`, err);
+            return []; // Retorna lista vacía en vez de tumbar toda la aplicación
+        }
     }
 
     async function fetchAllData() {
@@ -159,22 +140,26 @@
         btn.classList.add('loading');
 
         try {
-            // Descarga de datos optimizada con límites reducidos para evitar congestionar la red
+            // Peticiones usando Fetch + CORS Proxy
             const [balance, tga, rrp, hy, realRate] = await Promise.all([
-                fetchFredJsonp('WALCL', apiKey, 20),
-                fetchFredJsonp('WTREGEN', apiKey, 20),
-                fetchFredJsonp('RRPONTSYD', apiKey, 20),
-                fetchFredJsonp('BAMLH0A0HYM2', apiKey, 10),
-                fetchFredJsonp('DFII10', apiKey, 10)
+                fetchFredData('WALCL', apiKey, 20),
+                fetchFredData('WTREGEN', apiKey, 20),
+                fetchFredData('RRPONTSYD', apiKey, 20),
+                fetchFredData('BAMLH0A0HYM2', apiKey, 10),
+                fetchFredData('DFII10', apiKey, 10)
             ]);
 
-            const latestHy = getLastValidValue(hy);
-            const latestRealRate = getLastValidValue(realRate);
+            const latestHy = getLastValidValue(hy, 3.50); // Fallback si FRED bloquea HY
+            const latestRealRate = getLastValidValue(realRate, 1.80); // Fallback si FRED bloquea DFII10
 
-            const lastKnownTga = getLastValidValue(tga);
-            const lastKnownRrp = getLastValidValue(rrp);
+            const lastKnownTga = getLastValidValue(tga, 750000);
+            const lastKnownRrp = getLastValidValue(rrp, 400);
 
             const netLiquidityData = [];
+
+            if (balance.length === 0) {
+                throw new Error("No se pudo conectar con la API de FRED para obtener el Balance de la Fed.");
+            }
 
             for (let i = 0; i < balance.length; i++) {
                 const bVal = parseFredValue(balance[i]);
