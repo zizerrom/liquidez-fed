@@ -1,101 +1,3 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Druckenmiller Real-Data Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --bg: #0d1117; --card: #161b22; --border: #30363d;
-            --text: #c9d1d9; --gold: #d4af37; --up: #238636; --down: #da3633;
-        }
-        body {
-            background: var(--bg); color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
-        }
-        .container { width: 100%; max-width: 900px; }
-        
-        .api-config {
-            background: #000; border: 1px solid var(--gold);
-            padding: 15px; border-radius: 8px; margin-bottom: 20px;
-            display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-        }
-        input {
-            background: #1c2128; border: 1px solid var(--border);
-            color: white; padding: 8px; border-radius: 4px; flex-grow: 1;
-        }
-
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        .card {
-            background: var(--card); border: 1px solid var(--border);
-            padding: 20px; border-radius: 10px; position: relative;
-        }
-        .card h3 { font-size: 0.7rem; color: var(--gold); text-transform: uppercase; margin: 0 0 10px 0; }
-        .val { font-size: 1.6rem; font-weight: bold; }
-        .status { font-size: 0.75rem; margin-top: 5px; }
-
-        .signal-box {
-            margin: 20px 0; padding: 20px; border-radius: 10px;
-            text-align: center; font-weight: bold; border: 2px solid var(--border);
-        }
-
-        .chart-container { background: var(--card); padding: 15px; border-radius: 10px; margin-top: 20px; height: 300px; }
-        
-        button {
-            background: var(--gold); color: black; border: none;
-            padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;
-        }
-        .loading { opacity: 0.5; pointer-events: none; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <header style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: var(--gold); margin:0;">MACRO LIQUIDITY ENGINE</h1>
-        <p style="font-size: 0.8rem;">Basado en el Modelo de Stanley Druckenmiller</p>
-    </header>
-
-    <div class="api-config">
-        <span>FRED API KEY:</span>
-        <input type="text" id="apiKey" placeholder="Pega tu API Key de FRED aquí..." value="3b7c00ebcc026d8720166adabc61d369">
-        <button id="btnFetch" onclick="fetchAllData()">ACTUALIZAR DATOS REALES</button>
-    </div>
-
-    <div id="mainSignal" class="signal-box">
-        ESPERANDO DATOS...
-    </div>
-
-    <div class="grid">
-        <div class="card">
-            <h3>Liquidez Neta (Fed)</h3>
-            <div id="netLiq" class="val">---</div>
-            <div id="netLiqStatus" class="status">Cálculo: Balance - (TGA + RRP)</div>
-        </div>
-        <div class="card">
-            <h3>Crédito (HY OAS)</h3>
-            <div id="hyOas" class="val">---</div>
-            <div id="hyStatus" class="status">Riesgo de Impago</div>
-        </div>
-        <div class="card">
-            <h3>Tipo Real 10Y</h3>
-            <div id="realRate" class="val">---</div>
-            <div id="realRateStatus" class="status">Ajustado por Inflación</div>
-        </div>
-        <div class="card">
-            <h3>Régimen Técnico</h3>
-            <div id="techRegime" class="val">---</div>
-            <div id="techStatus" class="status">S&P 500 vs Media 200</div>
-        </div>
-    </div>
-
-    <div class="chart-container">
-        <canvas id="macroChart"></canvas>
-    </div>
-</div>
-
 <script>
     let chart;
 
@@ -114,12 +16,18 @@
 
     async function fetchFredSeries(seriesId, apiKey) {
         const targetUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=40`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        
+        // Proxy compatible con sitios web alojados en GitHub Pages
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
         const response = await fetch(proxyUrl);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        return data.observations || [];
+        
+        if (!data || !data.observations) {
+            throw new Error("Respuesta de datos vacía");
+        }
+        return data.observations;
     }
 
     async function fetchAllData() {
@@ -232,6 +140,3 @@
 
     window.onload = () => { fetchAllData(); };
 </script>
-
-</body>
-</html>
