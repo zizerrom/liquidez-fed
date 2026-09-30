@@ -3,91 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Druckenmiller Real-Data Dashboard</title>
+    <title>Druckenmiller Dashboard - Datos Directos</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --bg: #0d1117; --card: #161b22; --border: #30363d;
-            --text: #c9d1d9; --gold: #d4af37; --up: #238636; --down: #da3633;
-        }
-        body {
-            background: var(--bg); color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
-        }
-        .container { width: 100%; max-width: 900px; }
-        
-        .api-config {
-            background: #000; border: 1px solid var(--gold);
-            padding: 15px; border-radius: 8px; margin-bottom: 20px;
-            display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-        }
-        input {
-            background: #1c2128; border: 1px solid var(--border);
-            color: white; padding: 8px; border-radius: 4px; flex-grow: 1;
-        }
-
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        .card {
-            background: var(--card); border: 1px solid var(--border);
-            padding: 20px; border-radius: 10px; position: relative;
-        }
-        .card h3 { font-size: 0.7rem; color: var(--gold); text-transform: uppercase; margin: 0 0 10px 0; }
-        .val { font-size: 1.6rem; font-weight: bold; }
-        .status { font-size: 0.75rem; margin-top: 5px; }
-
-        .signal-box {
-            margin: 20px 0; padding: 20px; border-radius: 10px;
-            text-align: center; font-weight: bold; border: 2px solid var(--border);
-        }
-
-        .chart-container { background: var(--card); padding: 15px; border-radius: 10px; margin-top: 20px; height: 300px; }
-        
-        button {
-            background: var(--gold); color: black; border: none;
-            padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;
-        }
-        .loading { opacity: 0.5; pointer-events: none; }
+        :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9; --gold: #d4af37; --up: #238636; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 800px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-top: 20px; }
+        .card { background: var(--card); border: 1px solid var(--border); padding: 15px; border-radius: 8px; }
+        .card h3 { font-size: 0.75rem; color: var(--gold); margin: 0 0 10px 0; }
+        .val { font-size: 1.5rem; font-weight: bold; }
+        .signal-box { margin: 20px 0; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; border: 1px solid var(--gold); background: rgba(212, 175, 55, 0.1); }
+        .chart-container { background: var(--card); padding: 15px; border-radius: 8px; margin-top: 20px; height: 300px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <header style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: var(--gold); margin:0;">MACRO LIQUIDITY ENGINE</h1>
-        <p style="font-size: 0.8rem;">Basado en el Modelo de Stanley Druckenmiller</p>
-    </header>
-
-    <div class="api-config">
-        <span>FRED API KEY:</span>
-        <input type="text" id="apiKey" placeholder="Pega tu API Key de FRED..." value="3b7c00ebcc026d8720166adabc61d369">
-        <button id="btnFetch" onclick="fetchAllData()">ACTUALIZAR DATOS REALES</button>
-    </div>
-
-    <div id="mainSignal" class="signal-box">
-        ESPERANDO DATOS...
-    </div>
+    <h1 style="color: var(--gold); text-align: center; margin:0;">MACRO LIQUIDITY ENGINE</h1>
+    
+    <div id="mainSignal" class="signal-box">CARGANDO INDICADORES...</div>
 
     <div class="grid">
         <div class="card">
-            <h3>Liquidez Neta (Fed)</h3>
-            <div id="netLiq" class="val">---</div>
-            <div id="netLiqStatus" class="status">Cálculo: Balance - (TGA + RRP)</div>
+            <h3>Rendimiento 10Y US (^TNX)</h3>
+            <div id="yield10y" class="val">---</div>
         </div>
         <div class="card">
-            <h3>Crédito (HY OAS)</h3>
-            <div id="hyOas" class="val">---</div>
-            <div id="hyStatus" class="status">Riesgo de Impago</div>
+            <h3>Volatilidad VIX (^VIX)</h3>
+            <div id="vixVal" class="val">---</div>
         </div>
         <div class="card">
-            <h3>Tipo Real 10Y</h3>
-            <div id="realRate" class="val">---</div>
-            <div id="realRateStatus" class="status">Ajustado por Inflación</div>
+            <h3>S&P 500 (^GSPC)</h3>
+            <div id="spxVal" class="val">---</div>
         </div>
         <div class="card">
-            <h3>Régimen Técnico</h3>
-            <div id="techRegime" class="val">---</div>
-            <div id="techStatus" class="status">S&P 500 vs Media 200</div>
+            <h3>Estado de Red</h3>
+            <div id="statusVal" class="val" style="color: var(--up); font-size: 1rem;">Conectado</div>
         </div>
     </div>
 
@@ -97,154 +49,68 @@
 </div>
 
 <script>
-    let chart;
-
-    function parseFredValue(item) {
-        if (!item || item.value === "." || isNaN(parseFloat(item.value))) return null;
-        return parseFloat(item.value);
-    }
-
-    function getLastValidValue(observations, fallbackVal = 0) {
-        if (!observations || !Array.isArray(observations)) return fallbackVal;
-        for (let obs of observations) {
-            const val = parseFredValue(obs);
-            if (val !== null) return val;
-        }
-        return fallbackVal;
-    }
-
-    async function fetchFredData(seriesId, apiKey, limit = 20) {
-        const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=${limit}`;
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(fredUrl)}`;
-
+    async function fetchYahooData(symbol) {
         try {
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
-            return data.observations || [];
-        } catch (err) {
-            console.warn(`Error cargando la serie ${seriesId} vía Proxy:`, err);
-            return []; // Retorna lista vacía en vez de tumbar toda la aplicación
+            const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1mo`);
+            const data = await res.json();
+            const result = data.chart.result[0];
+            const prices = result.indicators.quote[0].close;
+            const dates = result.timestamp.map(ts => new Date(ts * 1000).toLocaleDateString());
+            return { prices: prices.filter(p => p !== null), dates };
+        } catch (e) {
+            console.error(`Error cargando ${symbol}:`, e);
+            return null;
         }
     }
 
-    async function fetchAllData() {
-        const apiKey = document.getElementById('apiKey').value.trim();
-        if (!apiKey) {
-            alert("Por favor, introduce tu API Key de FRED.");
-            return;
+    async function initDashboard() {
+        const [tnx, vix, spx] = await Promise.all([
+            fetchYahooData('^TNX'),
+            fetchYahooData('^VIX'),
+            fetchYahooData('^GSPC')
+        ]);
+
+        if (tnx && tnx.prices.length) {
+            document.getElementById('yield10y').innerText = `${tnx.prices[tnx.prices.length - 1].toFixed(2)}%`;
+        }
+        if (vix && vix.prices.length) {
+            document.getElementById('vixVal').innerText = vix.prices[vix.prices.length - 1].toFixed(2);
+        }
+        if (spx && spx.prices.length) {
+            document.getElementById('spxVal').innerText = Math.round(spx.prices[spx.prices.length - 1]);
         }
 
-        const btn = document.getElementById('btnFetch');
-        btn.innerText = "CARGANDO DATOS...";
-        btn.classList.add('loading');
+        const signalBox = document.getElementById('mainSignal');
+        const currentVix = vix ? vix.prices[vix.prices.length - 1] : 20;
 
-        try {
-            // Peticiones usando Fetch + CORS Proxy
-            const [balance, tga, rrp, hy, realRate] = await Promise.all([
-                fetchFredData('WALCL', apiKey, 20),
-                fetchFredData('WTREGEN', apiKey, 20),
-                fetchFredData('RRPONTSYD', apiKey, 20),
-                fetchFredData('BAMLH0A0HYM2', apiKey, 10),
-                fetchFredData('DFII10', apiKey, 10)
-            ]);
-
-            const latestHy = getLastValidValue(hy, 3.50); // Fallback si FRED bloquea HY
-            const latestRealRate = getLastValidValue(realRate, 1.80); // Fallback si FRED bloquea DFII10
-
-            const lastKnownTga = getLastValidValue(tga, 750000);
-            const lastKnownRrp = getLastValidValue(rrp, 400);
-
-            const netLiquidityData = [];
-
-            if (balance.length === 0) {
-                throw new Error("No se pudo conectar con la API de FRED para obtener el Balance de la Fed.");
-            }
-
-            for (let i = 0; i < balance.length; i++) {
-                const bVal = parseFredValue(balance[i]);
-                if (bVal === null) continue;
-
-                const tVal = parseFredValue(tga[i]) ?? lastKnownTga;
-                const rVal = parseFredValue(rrp[i]) ?? lastKnownRrp;
-
-                const netLiqTrillions = (bVal - tVal - (rVal * 1000)) / 1000000;
-
-                netLiquidityData.push({
-                    date: balance[i].date,
-                    val: netLiqTrillions
-                });
-            }
-
-            const currentLiq = netLiquidityData[0]?.val || 0;
-            const prevLiq = netLiquidityData[2]?.val || currentLiq;
-
-            document.getElementById('netLiq').innerText = `${currentLiq.toFixed(2)}T`;
-            document.getElementById('hyOas').innerText = `${latestHy.toFixed(2)}%`;
-            document.getElementById('realRate').innerText = `${latestRealRate.toFixed(2)}%`;
-
-            document.getElementById('techRegime').innerText = "ALCISTA";
-            document.getElementById('techRegime').style.color = "var(--up)";
-
-            const signalBox = document.getElementById('mainSignal');
-            const isLiqGrowing = currentLiq > prevLiq;
-            const isCreditSafe = latestHy < 4.5;
-
-            if (isLiqGrowing && isCreditSafe) {
-                signalBox.innerText = "SEÑAL: EXPANSIÓN AGRESIVA (RISK-ON)";
-                signalBox.style.backgroundColor = "rgba(35, 134, 54, 0.2)";
-                signalBox.style.borderColor = "var(--up)";
-            } else if (latestHy > 5) {
-                signalBox.innerText = "SEÑAL: MÁXIMA PRECAUCIÓN (DEFENSIVO)";
-                signalBox.style.backgroundColor = "rgba(218, 54, 51, 0.2)";
-                signalBox.style.borderColor = "var(--down)";
-            } else {
-                signalBox.innerText = "SEÑAL: NEUTRAL / TRANSICIÓN";
-                signalBox.style.backgroundColor = "rgba(212, 175, 55, 0.1)";
-                signalBox.style.borderColor = "var(--gold)";
-            }
-
-            renderChart(netLiquidityData.slice(0, 12).reverse());
-
-        } catch (error) {
-            console.error("Detalle del error:", error);
-            alert("Error al cargar datos: " + error.message);
-        } finally {
-            btn.innerText = "ACTUALIZAR DATOS REALES";
-            btn.classList.remove('loading');
+        if (currentVix < 18) {
+            signalBox.innerText = "SEÑAL: ENTORNO ALCISTA / EXPANSIVO";
+            signalBox.style.color = "var(--up)";
+        } else {
+            signalBox.innerText = "SEÑAL: PRECAUCIÓN / ELEVADA VOLATILIDAD";
+            signalBox.style.color = "var(--gold)";
         }
-    }
 
-    function renderChart(data) {
-        const ctx = document.getElementById('macroChart').getContext('2d');
-        if (chart) chart.destroy();
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.map(d => d.date),
-                datasets: [{
-                    label: 'Liquidez Neta Fed (Trillones $)',
-                    data: data.map(d => d.val),
-                    borderColor: '#d4af37',
-                    backgroundColor: 'rgba(212, 175, 55, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { ticks: { color: '#8b949e', maxRotation: 0, autoSkip: true, maxTicksLimit: 5 } },
-                    y: { grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }
+        if (spx) {
+            const ctx = document.getElementById('macroChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: spx.dates.slice(-15),
+                    datasets: [{
+                        label: 'S&P 500 (Últimos 15 días)',
+                        data: spx.prices.slice(-15),
+                        borderColor: '#d4af37',
+                        backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                        fill: true
+                    }]
                 },
-                plugins: { legend: { display: false } }
-            }
-        });
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
     }
 
-    window.onload = () => { fetchAllData(); };
+    window.onload = initDashboard;
 </script>
-
 </body>
 </html>
